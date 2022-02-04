@@ -1,7 +1,7 @@
 import os
 import sys
 import win32api
-import send2trash
+from send2trash import send2trash
 
 reset = "\x1b[0m"
 
@@ -37,7 +37,8 @@ def exit_handler(*args):
 
 def init():
     directory_path = ""
-    #os.system("PATH %PATH%;C:\\ffmpeg\\bin")
+    working_directory = os.getcwd() + "\\"
+    os.system("PATH %PATH%;" + working_directory)
     
     directory_path = locate_path(" of clips")
     output_path = locate_path(" to output clips")
@@ -64,7 +65,7 @@ def init():
             continue
         
         while 1:
-            clip = edit_clip(directory_path)
+            clip = edit_clip(directory_path, working_directory)
             
             preview_clip(full_path)
             
@@ -109,21 +110,23 @@ def preview_clip(full_path, edit=False):
             
             if delete == "delete":
                 send2trash(full_path)
-                os.system("del temp_clip.mp4")
                 return True
             return False
 
 
-def edit_clip(directory_path):
+def edit_clip(directory_path, working_directory):
     while 1:
         while 1:
             os.system("cls")
             header()
             
-            print("\n  Input start " + green + "time (seconds)" + reset + " of subclip.")
+            print(f'\n  Input start {green}time (seconds){reset} of subclip.')
             start = input("\n >>>")
-            print("\n  Input end " + green + "time (seconds)" + reset + " of subclip.")
+            print(f'\n  Input end {green}time (seconds){reset} of subclip. Press enter to {red}cancel{reset}.')
             end = input("\n >>>")
+            
+            if end == "":
+                continue
             
             try:
                 start = int(start)
@@ -135,7 +138,7 @@ def edit_clip(directory_path):
         
         while 1:
             try:
-                os.system(f'ffmpeg -i temp_clip.mp4 -ss {start} -t {duration} -vcodec h264_amf -b:v 15m temp_clip2.mp4 -y')
+                os.system(f'"{working_directory}ffmpeg" -i temp_clip.mp4 -ss {start} -t {duration} -vcodec h264_amf -b:v 15m temp_clip2.mp4 -y')
                 os.system("copy temp_clip2.mp4 temp_clip.mp4 /y")
                 os.system("del temp_clip2.mp4")
                 press_enter()
