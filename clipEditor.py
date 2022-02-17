@@ -1,4 +1,5 @@
 import os
+import subprocess
 import sys
 import win32api
 from send2trash import send2trash
@@ -29,8 +30,8 @@ def header():
 
 
 def exit_handler(*args):
-    os.system("del temp_clip.mp4")
-    os.system("del temp_clip2.mp4")
+    os.system("del temp_clip.*")
+    os.system("del temp_clip2.*")
 
 
 # -= SCREENS =-
@@ -43,11 +44,20 @@ def init():
     directory_path = locate_path(" of clips")
     output_path = locate_path(" to output clips")
     
-    clips = next(os.walk(directory_path), (None, None, []))[2]
-    
-    clips = [name for name in clips if name.endswith(".mp4") and not name.count("temp_clip")]
+    vcodec = open("config.txt", "r").read().split("\n")[0].split("=")[1]
     
     os.chdir(directory_path)
+    
+    clips = next(os.walk(directory_path), (None, None, []))[2]
+    
+    for i in range(len(clips)-1, -1, -1):
+        try:
+            query = subprocess.run(f'"{working_directory}ffmpeg" -i "{clips[i]}"', check=True, capture_output=True)
+        except subprocess.CalledProcessError as e:
+            query = str(e.stderr)
+        
+        if "At least one output file must be specified" not in query:
+            clips.pop(i)
     
     if not clips:
         os.system("cls")
@@ -58,18 +68,19 @@ def init():
     
     for file in clips:
         full_path = directory_path + "\\" + file
+        clip_extension = full_path.split(".")[-1]
         
-        load_clip(full_path)
+        load_clip(full_path, clip_extension)
         
-        if preview_clip(full_path, True):
+        if preview_clip(full_path, clip_extension, True):
             continue
         
         while 1:
-            clip = edit_clip(directory_path, working_directory)
+            clip = edit_clip(directory_path, working_directory, clip_extension, vcodec)
             
-            preview_clip(full_path)
+            preview_clip(full_path, clip_extension)
             
-            if trim_save_clip(full_path, output_path):
+            if trim_save_clip(full_path, output_path, clip_extension):
                 break
     
     os.system("cls")
@@ -92,12 +103,12 @@ def locate_path(append):
             press_enter()
 
 
-def load_clip(full_path):
-    os.system(f'copy "{full_path}" temp_clip.mp4 /y')
+def load_clip(full_path, clip_extension):
+    os.system(f'copy "{full_path}" temp_clip.{clip_extension} /y')
 
 
-def preview_clip(full_path, edit=False):
-    os.system("temp_clip.mp4")
+def preview_clip(full_path, clip_extension, edit=False):
+    os.system("temp_clip." + clip_extension)
     
     if edit:
         while 1:
@@ -114,7 +125,7 @@ def preview_clip(full_path, edit=False):
             return False
 
 
-def edit_clip(directory_path, working_directory):
+def edit_clip(directory_path, working_directory, clip_extension, vcodec):
     while 1:
         while 1:
             os.system("cls")
@@ -138,9 +149,9 @@ def edit_clip(directory_path, working_directory):
         
         while 1:
             try:
-                os.system(f'"{working_directory}ffmpeg" -i temp_clip.mp4 -ss {start} -t {duration} -vcodec h264_amf -b:v 15m temp_clip2.mp4 -y')
-                os.system("copy temp_clip2.mp4 temp_clip.mp4 /y")
-                os.system("del temp_clip2.mp4")
+                os.system(f'"{working_directory}ffmpeg" -i temp_clip.{clip_extension} -ss {start} -t {duration} -vcodec {vcodec} -b:v 15m temp_clip2.{clip_extension} -y')
+                os.system(f'copy temp_clip2.{clip_extension} temp_clip.{clip_extension} /y')
+                os.system("del temp_clip2." + clip_extension)
                 press_enter()
                 return
             except Exception as e:
@@ -150,7 +161,7 @@ def edit_clip(directory_path, working_directory):
                 break
 
 
-def trim_save_clip(full_path, output_path):
+def trim_save_clip(full_path, output_path, clip_extension):
     while 1:
         os.system("cls")
         header()
@@ -164,8 +175,8 @@ def trim_save_clip(full_path, output_path):
         
         if option in "12":
             while 1:
-                print(f'\n  Input the {green}name{reset} for the clip. Make the name Windows-friendly!')
-                clip_name = input("\n >>>").replace(".mp4", "")
+                print(f'\n  Input the {green}name{reset} for the clip. Make the name Windows-friendly!\n  NOTE: Don\'t include the file extension.')
+                clip_name = input("\n >>>")
                 clip_name_output_path = ""
                 clip_name_no_path = ""
                 
@@ -188,7 +199,7 @@ def trim_save_clip(full_path, output_path):
                     clip_name_output_path = output_path
                 
                 overwrite = True
-                if clip_name_no_path + ".mp4" in os.listdir(clip_name_output_path):
+                if clip_name_no_path + "." + clip_extension in os.listdir(clip_name_output_path):
                     while 1:
                         os.system("cls")
                         header()
@@ -204,8 +215,8 @@ def trim_save_clip(full_path, output_path):
                 if not overwrite:
                     continue
                 
-                os.system(f'copy temp_clip.mp4 "{output_path}\{clip_name}.mp4" /y')
-                os.system("del temp_clip.mp4")
+                os.system(f'copy temp_clip.{clip_extension} "{output_path}\{clip_name}.{clip_extension}" /y')
+                os.system("del temp_clip." + clip_extension)
                 if option == "2":
                     send2trash(full_path)
                 return True
