@@ -50,14 +50,18 @@ def init():
     
     clips = next(os.walk(directory_path), (None, None, []))[2]
     
+    print("\n  Loading clips...")
+    
     for i in range(len(clips)-1, -1, -1):
         try:
-            query = subprocess.run(f'"{working_directory}ffmpeg" -i "{clips[i]}"', check=True, capture_output=True)
+            query = subprocess.run(f'"{working_directory}ffmpeg" -i "{clips[i]}"', check=True, capture_output=True).stderr
         except subprocess.CalledProcessError as e:
             query = str(e.stderr)
         
-        if "At least one output file must be specified" not in query:
+        if "VideoHandler" not in query:
             clips.pop(i)
+    
+    print("\n  Done loading clips. If the program stays frozen, try editing config.txt.")
     
     if not clips:
         os.system("cls")

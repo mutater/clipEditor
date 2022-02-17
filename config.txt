@@ -1,4 +1,4 @@
-vcodec=libx264
+vcodec=h264_amf
 
 AMD GPUS: use "h264_amf" without quotes
 NVIDIA GPUS: use "h264_nvenc" without quotes
