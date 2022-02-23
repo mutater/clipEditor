@@ -14,8 +14,9 @@ def color(r, g, b):
 
 
 red = color(255, 90, 90)
-blue = color(30, 120, 255)
 green = color(90, 255, 90)
+blue = color(30, 120, 255)
+yellow = color(255, 255, 30)
 gray = color(127, 127, 127)
 
 
@@ -36,68 +37,61 @@ def exit_handler(*args):
 
 # -= SCREENS =-
 
-def init():
+def loop():
     directory_path = ""
     working_directory = os.getcwd() + "\\"
+    directory_path = locate_path(" of clips to be edited")
+    output_path = locate_path(" to output clips")
+    vcodec = open("config.txt", "r").read().split("\n")[0].split("=")[1]
     os.system("PATH %PATH%;" + working_directory)
     
-    directory_path = locate_path(" of clips")
-    output_path = locate_path(" to output clips")
-    
-    vcodec = open("config.txt", "r").read().split("\n")[0].split("=")[1]
-    
-    os.chdir(directory_path)
-    
-    clips = next(os.walk(directory_path), (None, None, []))[2]
-    
-    print("\n  Loading clips...")
-    
-    for i in range(len(clips)-1, -1, -1):
-        try:
-            query = subprocess.run(f'"{working_directory}ffmpeg" -i "{clips[i]}"', check=True, capture_output=True).stderr
-        except subprocess.CalledProcessError as e:
-            query = str(e.stderr)
+    while 1:
+        os.chdir(directory_path)
         
-        if "VideoHandler" not in query:
-            clips.pop(i)
+        clips = load_clips(directory_path, working_directory)
+        
+        if not clips:
+            os.system("cls")
+            header()
+            print(red + "\n  Directory contains no clips.")
+            press_enter()
+            return
     
-    print("\n  Done loading clips. If the program stays frozen, try editing config.txt.")
+        for file in clips:
+            full_path = directory_path + "\\" + file
+            clip_extension = full_path.split(".")[-1]
+            
+            load_clip(full_path, clip_extension)
+            
+            if preview_clip(full_path, clip_extension, output_path, True):
+                continue
+            
+            while 1:
+                clip = edit_clip(directory_path, working_directory, clip_extension, vcodec)
+                
+                preview_clip(full_path, clip_extension)
+                
+                if trim_save_clip(full_path, output_path, clip_extension):
+                    break
     
-    if not clips:
         os.system("cls")
         header()
-        print(red + "\n  Directory contains no clips.")
-        press_enter()
-        return
-    
-    for file in clips:
-        full_path = directory_path + "\\" + file
-        clip_extension = full_path.split(".")[-1]
+        print(f'\n  No more clips detected! {green}Continue{reset} editing in a new location? ({green}y{reset}/{red}n{reset})')
+        option = input("\n >>>")
         
-        load_clip(full_path, clip_extension)
-        
-        if preview_clip(full_path, clip_extension, True):
+        if option == "y":
+            directory_path = locate_path(" of clipts to be edited")
             continue
+        return
+            
         
-        while 1:
-            clip = edit_clip(directory_path, working_directory, clip_extension, vcodec)
-            
-            preview_clip(full_path, clip_extension)
-            
-            if trim_save_clip(full_path, output_path, clip_extension):
-                break
-    
-    os.system("cls")
-    header()
-    print("\n  No more clips detected!")
-    press_enter()
 
 
 def locate_path(append):
     while 1:
         os.system("cls")
         header()
-        print("\n  Input " + green + "folder path" + reset + append + ".")
+        print("\n  Type the " + green + "folder path" + reset + append + ".")
         path = input("\n >>>")
         
         if os.path.isdir(path):
@@ -108,25 +102,55 @@ def locate_path(append):
 
 
 def load_clip(full_path, clip_extension):
+    os.system("del temp_clip.*")
     os.system(f'copy "{full_path}" temp_clip.{clip_extension} /y')
 
 
-def preview_clip(full_path, clip_extension, edit=False):
+def load_clips(directory_path, working_directory):
+    clips = next(os.walk(directory_path), (None, None, []))[2]
+    
+    print("\n  Loading clips...")
+    
+    for i in range(len(clips)-1, -1, -1):
+        try:
+            query = subprocess.run(f'"{working_directory}ffmpeg" -i "{clips[i]}"', check=True, capture_output=True).stderr
+        except subprocess.CalledProcessError as e:
+            query = str(e.stderr)
+        
+        if "Duration:" not in query or "Duration: N/A" in query:
+            clips.pop(i)
+    
+    print("\n  Done loading clips. If the program stays frozen, try editing config.txt.")
+    
+    return clips
+
+
+def preview_clip(full_path, clip_extension, output_path="", edit=False):
     os.system("temp_clip." + clip_extension)
     
-    if edit:
-        while 1:
-            os.system("cls")
-            header()
-            
-            print("\n  Previewing original clip '" + full_path + "'")
-            print(f'\n  Type "{red}delete{reset}" to delete the clip, press enter to cancel.')
-            delete = input("\n >>>")
-            
-            if delete == "delete":
-                send2trash(full_path)
+    if not edit:
+        return
+    
+    while 1:
+        os.system("cls")
+        header()
+        
+        print("\n  Previewing original clip '" + full_path + "'")
+        print("\n  Input the number for an option below.")
+        print(f'\n   1) {blue}Edit{reset} the clip.')
+        print(f'\n   2) {yellow}Continue{reset} without editing.')
+        print(f'\n   3) {red}Delete{reset} the clip.')
+        option = input("\n >>>")
+        
+        if option == "1":
+            return False
+        elif option == "2":
+            if trim_save_clip(full_path, output_path, clip_extension):
                 return True
             return False
+        elif option == "3":
+            send2trash(full_path)
+            return True
 
 
 def edit_clip(directory_path, working_directory, clip_extension, vcodec):
@@ -144,22 +168,22 @@ def edit_clip(directory_path, working_directory, clip_extension, vcodec):
                 continue
             
             try:
-                start = int(start)
-                duration = int(end) - start
+                start = float(start)
+                duration = float(end) - start + 1
                 break
             except:
-                print(red + "\n  Start and end times must be inputted as only numbers.")
+                print(red + "\n  Input must be only numbers, e.g. '5' or '2.3' without quotes.")
                 press_enter()
         
         while 1:
             try:
                 os.system(f'"{working_directory}ffmpeg" -i temp_clip.{clip_extension} -ss {start} -t {duration} -vcodec {vcodec} -b:v 15m temp_clip2.{clip_extension} -y')
                 os.system(f'copy temp_clip2.{clip_extension} temp_clip.{clip_extension} /y')
-                os.system("del temp_clip2." + clip_extension)
+                os.system("del temp_clip2.*")
                 press_enter()
                 return
             except Exception as e:
-                print(red + "\n  Unable to trim video. Were your start and end times within the video bounds?")
+                print(red + "\n  Unable to trim video; start and duration were incorrect or another error occured.")
                 print("\n  " + str(e))
                 press_enter()
                 break
@@ -170,16 +194,16 @@ def trim_save_clip(full_path, output_path, clip_extension):
         os.system("cls")
         header()
         print("\n  Previewing edited clip '" + full_path + "'")
-        print("\n  Input the number for the options given below.")
-        print(f'\n   1) {green}Save{reset} clip to output directory.')
-        print(f'\n   2) {green}Save{reset} clip to output directory and {red}delete{reset} original clip.')
-        print(f'\n   3) Do nothing and {blue}retrim{reset} the already edited clip.')
-        print(f'\n   4) {red}Reset{reset} the clip to the original state.')
+        print("\n  Input the number for an option below.")
+        print(f'\n   1) {green}Save{reset} the clip.')
+        print(f'\n   2) {green}Save{reset} the clip and {red}delete{reset} the original clip.')
+        print(f'\n   3) {yellow}Undo changes{reset} to the clip.')
         option = input("\n >>>")
         
         if option in "12":
             while 1:
-                print(f'\n  Input the {green}name{reset} for the clip. Make the name Windows-friendly!\n  NOTE: Don\'t include the file extension.')
+                print(f'\n  Input the name for the clip. Make the name {green}Windows-friendly{reset}!')
+                print(f'  NOTE: {red}Don\'t{reset} include the file extension.')
                 clip_name = input("\n >>>")
                 clip_name_output_path = ""
                 clip_name_no_path = ""
@@ -197,12 +221,22 @@ def trim_save_clip(full_path, output_path, clip_extension):
                         .split("\\")
                         [:-1]
                     )
-                    clip_name_output_path = output_path + "\\" + "".join(clip_name_output_path) + "\\"
+                    clip_name_output_path = output_path + "\\" + "\\".join(clip_name_output_path) + "\\"
                 else:
                     clip_name_no_path = clip_name
                     clip_name_output_path = output_path
                 
                 overwrite = True
+                
+                try:
+                    os.listdir(clip_name_output_path)
+                except:
+                    print(f'\n  {red}Directory path does not exist.{reset}')
+                    press_enter()
+                    os.system("cls")
+                    header()
+                    continue
+                
                 if clip_name_no_path + "." + clip_extension in os.listdir(clip_name_output_path):
                     while 1:
                         os.system("cls")
@@ -225,8 +259,6 @@ def trim_save_clip(full_path, output_path, clip_extension):
                     send2trash(full_path)
                 return True
         elif option == "3":
-            return False
-        elif option == "4":
             while 1:
                 os.system("cls")
                 header()
@@ -234,8 +266,8 @@ def trim_save_clip(full_path, output_path, clip_extension):
                 option = input("\n >>>")
                 
                 if option == "y":
-                    load_clip(full_path)
-                    preview_clip(full_path)
+                    load_clip(full_path, clip_extension)
+                    preview_clip(full_path, clip_extension)
                     return False
                 elif option == "n":
                     break
@@ -244,4 +276,4 @@ def trim_save_clip(full_path, output_path, clip_extension):
 if __name__ == "__main__":
     os.system("")
     win32api.SetConsoleCtrlHandler(exit_handler, True)
-    init()
+    loop()
