@@ -1,1 +1,1 @@
-python -m pip install send2trash pywin32
+python -m pip install -r requirements.txt

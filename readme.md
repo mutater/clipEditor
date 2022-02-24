@@ -3,9 +3,9 @@ Mutater's Clip Editor
 
 
 Python3 and FFMPEG are required to use this script.
-Required Python modules are "send2trash" and "pywin32".
-
-setup.bat will install the required Python modules automatically.
+To install required modules either:
+ - Run setup.bat
+ - Run "python -m pip install -r requirements.txt" without quotes in this directory in cmd.
 
 Make sure to configure "config.txt" and use the appropriate video codec.
 If the script freezes after inputting the output directory, the wrong video codec was used.
