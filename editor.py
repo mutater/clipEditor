@@ -47,8 +47,8 @@ def options(*args):
     return input("\n >>>")
 
 
-def get_files(path=""):
-    return next(os.walk(path), (None, None, []))[2]
+def get_files(pathe=""):
+    return next(os.walk(pathe), (None, None, []))[2]
 
 
 def get_file_names(path=""):
@@ -93,7 +93,7 @@ class Editor:
         self.output_directory = self.input_path(" to save clips")
         self.current_clip = 0
         
-        os.chdir(self.input_directory)
+        os.chdir(os.getcwd())
         
         self.load_clips()
         
@@ -120,11 +120,12 @@ class Editor:
             
             while 1:
                 self.edit_clip()
-                play(f'temp_clip.{self.clip_extension}')
+                play(f'{self.input_directory}\\temp_clip.{self.clip_extension}')
                 
                 # If clip is exported, continue to next clip
                 if self.export_clip():
-                    continue
+                    break
+            continue
     
     def edit_again(self):
         clear()
@@ -132,12 +133,13 @@ class Editor:
         
         print(f'\n  No more clips detected!')
         option = options(
-            f'Type the {green}path{reset} of another directory to continue editing.',
+            f'Type {green}anything{reset} to continue editing.',
             f'Press ENTER without typing to {red}exit{reset}.'
         )
         
         if option:
             self.input_directory = self.input_path(" of clips to edit")
+            self.current_clip = 0
             return True
         return False
     
@@ -159,7 +161,7 @@ class Editor:
     def load_clip(self):
         if "temp_clip" in get_file_names():
             delete("temp_clip.*")
-        copy(self.clip_path, f'temp_clip.{self.clip_extension}')
+        copy(self.clip_path, f'{self.input_directory}\\temp_clip.{self.clip_extension}')
     
     def load_clips(self):
         clear()
@@ -170,7 +172,7 @@ class Editor:
         
         for i in range(len(clips)-1, -1, -1):
             try:
-                query = self.type_checker.from_buffer(open(clips[i], "rb").read(2048))
+                query = self.type_checker.from_buffer(open(f'{self.input_directory}\\{clips[i]}', "rb").read(2048))
                 
                 if "video" in query:
                     continue
@@ -183,7 +185,7 @@ class Editor:
         self.clips = clips
     
     def if_edit_clip(self):
-        play(f'temp_clip.{self.clip_extension}')
+        play(f'{self.input_directory}\\temp_clip.{self.clip_extension}')
         
         while 1:
             clear()
@@ -214,8 +216,8 @@ class Editor:
                 clear()
                 header()
                 
-                start = self.option(f'Type start {green}time{reset} of subclip in {green}seconds{reset}.')
-                end = self.option(
+                start = options(f'Type start {green}time{reset} of subclip in {green}seconds{reset}.')
+                end = options(
                     f'Type end {green}time{reset} of subclip in {green}seconds{reset}.',
                     f'Press {yellow}ENTER{reset} without typing to {red}cancel{reset}.'
                 )
@@ -230,13 +232,16 @@ class Editor:
                 
             while 1:
                 try:
-                    source = f'temp_clip.{self.clip_extension}'
-                    destination = f'temp_clip2.{self.clip_extension}'
-                    ffmpeg = f'"{self.working_directory}ffmpeg"'
+                    source = f'"{self.input_directory}\\temp_clip.{self.clip_extension}"'
+                    destination = f'"{self.input_directory}\\temp_clip2.{self.clip_extension}"'
+                    ffmpeg = "ffmpeg"
                     
-                    os.system(f'{ffmpeg} -i "{source}" -ss {start} -t {duration} -vcodec {self.video_codec} -b:v 15m "{destination}" -y')
+                    os.system("cd")
+                    command = f'{ffmpeg} -i {source} -ss {start} -t {duration} -vcodec {self.video_codec} -b:v 15m {destination} -y'
+                    
+                    os.system(command)
                     copy(destination, source)
-                    delete("temp_clip2.*")
+                    delete(f'{self.input_directory}\\temp_clip2.*')
                     press_enter()
                     return
                 except Exception as e:
@@ -277,7 +282,7 @@ class Editor:
                     # If subdirectory specified in clip name, format it to be added to output directory
                     export_subdirectory = "\\".join(export_path_as_list[:-1])
                     if export_subdirectory:
-                        export_subdirectory = f'\\{export_directory}'
+                        export_subdirectory = f'\\{export_subdirectory}'
                     export_directory = self.output_directory + export_subdirectory + "\\"
                     export_path = export_directory + export_name
                     
@@ -313,8 +318,10 @@ class Editor:
                     if not overwrite:
                         continue
                     
-                    copy(f'temp_clip.{self.clip_extension}', f'{export_path}.{self.clip_extension}')
-                    delete("temp_clip.*")
+                    source = f'{self.input_directory}\\temp_clip.{self.clip_extension}'
+                    destination = f'{export_path}.{self.clip_extension}'
+                    copy(source, destination)
+                    delete(f'{self.input_directory}\\temp_clip.*')
                     if recycle:
                         send2trash(self.clip_path)
                     return True
@@ -332,8 +339,8 @@ class Editor:
                     if option == "1":
                         self.load_clip()
                         if self.if_edit_clip():
-                            return True
-                        return False
+                            return False
+                        return True
                     elif option == "2":
                         break
 
