@@ -38,7 +38,7 @@ def copy(source, destination):
 
 
 def play(file):
-    os.system(file)
+    os.system('"' + file + '"')
 
 
 def options(*args):
@@ -56,8 +56,7 @@ def get_file_names(path=""):
 
 
 def exit_handler(*args):
-    delete("temp_clip.*")
-    delete("temp_clip2.*")
+    e.delete_temps()
 
 
 class Editor:
@@ -343,6 +342,10 @@ class Editor:
                         return True
                     elif option == "2":
                         break
+    
+    def delete_temps(self):
+        delete(e.input_directory + "\\temp_clip.*")
+        delete(e.input_directory + "\\temp_clip2.*")
 
 if __name__ == "__main__":
     win32api.SetConsoleCtrlHandler(exit_handler, True)
